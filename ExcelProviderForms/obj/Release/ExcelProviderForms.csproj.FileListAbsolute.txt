@@ -1,0 +1,15 @@
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\bin\Release\ExcelProviderForms.exe.config
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\bin\Release\ExcelProviderForms.exe.manifest
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\bin\Release\ExcelProviderForms.application
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\bin\Release\ExcelProviderForms.exe
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\bin\Release\ExcelProviderForms.pdb
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.csproj.AssemblyReference.cache
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.csproj.ResolveComReference.cache
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.Form1.resources
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.Properties.Resources.resources
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.csproj.GenerateResource.cache
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.csproj.CoreCompileInputs.cache
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.exe.manifest
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.application
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.exe
+C:\Users\imvic\source\repos\ExcelProviderForms\ExcelProviderForms\obj\Release\ExcelProviderForms.pdb

@@ -1,0 +1,70 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\imvic\\source\\repos\\ExcelProviderForms\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{E708AA8F-6559-45A6-BB03-2F645E187FC8}|ExcelProviderForms\\ExcelProviderForms.csproj|c:\\users\\imvic\\source\\repos\\excelproviderforms\\excelproviderforms\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E708AA8F-6559-45A6-BB03-2F645E187FC8}|ExcelProviderForms\\ExcelProviderForms.csproj|solutionrelative:excelproviderforms\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E708AA8F-6559-45A6-BB03-2F645E187FC8}|ExcelProviderForms\\ExcelProviderForms.csproj|c:\\users\\imvic\\source\\repos\\excelproviderforms\\excelproviderforms\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{E708AA8F-6559-45A6-BB03-2F645E187FC8}|ExcelProviderForms\\ExcelProviderForms.csproj|solutionrelative:excelproviderforms\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E708AA8F-6559-45A6-BB03-2F645E187FC8}|ExcelProviderForms\\ExcelProviderForms.csproj|c:\\users\\imvic\\source\\repos\\excelproviderforms\\excelproviderforms\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E708AA8F-6559-45A6-BB03-2F645E187FC8}|ExcelProviderForms\\ExcelProviderForms.csproj|solutionrelative:excelproviderforms\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Form1.cs",
+              "DocumentMoniker": "C:\\Users\\imvic\\source\\repos\\ExcelProviderForms\\ExcelProviderForms\\Form1.cs",
+              "RelativeDocumentMoniker": "ExcelProviderForms\\Form1.cs",
+              "ToolTip": "C:\\Users\\imvic\\source\\repos\\ExcelProviderForms\\ExcelProviderForms\\Form1.cs",
+              "RelativeToolTip": "ExcelProviderForms\\Form1.cs",
+              "ViewState": "AgIAAGwAAAAAAAAAAADwv5EAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T21:58:36.903Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\imvic\\source\\repos\\ExcelProviderForms\\ExcelProviderForms\\Program.cs",
+              "RelativeDocumentMoniker": "ExcelProviderForms\\Program.cs",
+              "ToolTip": "C:\\Users\\imvic\\source\\repos\\ExcelProviderForms\\ExcelProviderForms\\Program.cs",
+              "RelativeToolTip": "ExcelProviderForms\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T21:58:33.626Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Form1.cs [Design]",
+              "DocumentMoniker": "C:\\Users\\imvic\\source\\repos\\ExcelProviderForms\\ExcelProviderForms\\Form1.cs",
+              "RelativeDocumentMoniker": "ExcelProviderForms\\Form1.cs",
+              "ToolTip": "C:\\Users\\imvic\\source\\repos\\ExcelProviderForms\\ExcelProviderForms\\Form1.cs [Design]",
+              "RelativeToolTip": "ExcelProviderForms\\Form1.cs [Design]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T21:56:10.437Z",
+              "EditorCaption": " [Design]"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
