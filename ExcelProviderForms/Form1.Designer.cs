@@ -37,6 +37,8 @@
             this.labelNew = new System.Windows.Forms.Label();
             this.txtOldPath = new System.Windows.Forms.TextBox();
             this.txtNewPath = new System.Windows.Forms.TextBox();
+            this.PathLabel = new System.Windows.Forms.Label();
+            this.txtPath = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
             // button1
@@ -107,11 +109,29 @@
             this.txtNewPath.Size = new System.Drawing.Size(240, 20);
             this.txtNewPath.TabIndex = 7;
             // 
+            // PathLabel
+            // 
+            this.PathLabel.AutoSize = true;
+            this.PathLabel.Location = new System.Drawing.Point(27, 79);
+            this.PathLabel.Name = "PathLabel";
+            this.PathLabel.Size = new System.Drawing.Size(29, 13);
+            this.PathLabel.TabIndex = 8;
+            this.PathLabel.Text = "Path";
+            // 
+            // txtPath
+            // 
+            this.txtPath.Location = new System.Drawing.Point(96, 79);
+            this.txtPath.Name = "txtPath";
+            this.txtPath.Size = new System.Drawing.Size(240, 20);
+            this.txtPath.TabIndex = 9;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 532);
+            this.Controls.Add(this.txtPath);
+            this.Controls.Add(this.PathLabel);
             this.Controls.Add(this.txtNewPath);
             this.Controls.Add(this.txtOldPath);
             this.Controls.Add(this.labelNew);
@@ -139,6 +159,8 @@
         private System.Windows.Forms.Label labelNew;
         private System.Windows.Forms.TextBox txtOldPath;
         private System.Windows.Forms.TextBox txtNewPath;
+        private System.Windows.Forms.Label PathLabel;
+        private System.Windows.Forms.TextBox txtPath;
     }
 }
 

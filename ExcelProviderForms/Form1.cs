@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
+﻿using Microsoft.WindowsAPICodePack.Dialogs;
+using System;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using System.Runtime.InteropServices;
 
 namespace ExcelProviderForms
 {
@@ -29,13 +23,14 @@ namespace ExcelProviderForms
 
         private void button1_Click(object sender, EventArgs e)
         {
-            using (var fbd = new FolderBrowserDialog())
+            using (var dialog = new CommonOpenFileDialog())
             {
-                DialogResult result = fbd.ShowDialog();
+                dialog.IsFolderPicker = true;
+                dialog.Title = "Selecciona una carpeta con archivos Excel";
 
-                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
                 {
-                    string[] archivosExcel = Directory.GetFiles(fbd.SelectedPath, "*.xlsx");
+                    string[] archivosExcel = Directory.GetFiles(dialog.FileName, "*.xlsx");
 
                     listBox1.Items.Clear();
                     foreach (string archivo in archivosExcel)
@@ -51,6 +46,7 @@ namespace ExcelProviderForms
                 }
             }
         }
+
 
         private void btnProcesar_Click(object sender, EventArgs e)
         {
