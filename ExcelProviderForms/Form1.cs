@@ -2,6 +2,8 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -12,8 +14,9 @@ namespace ExcelProviderForms
         public Form1()
         {
             InitializeComponent();
-            txtOldPath.Text = @"C:\Nas";
-            txtNewPath.Text = @"C:\FsPlaza";
+            txtOldPath.Text = @"\\fs-plaza1";
+            txtNewPath.Text = @"\\nas-plaza1";
+
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -30,7 +33,8 @@ namespace ExcelProviderForms
 
                 if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
                 {
-                    string[] archivosExcel = Directory.GetFiles(dialog.FileName, "*.xlsx");
+                    //string[] archivosExcel = Directory.GetFiles(dialog.FileName, "*.xlsx");
+                    string[] archivosExcel = Directory.GetFiles(dialog.FileName, "*.xlsx", SearchOption.AllDirectories);
 
                     listBox1.Items.Clear();
                     foreach (string archivo in archivosExcel)
@@ -42,17 +46,19 @@ namespace ExcelProviderForms
                     if (archivosExcel.Length == 0)
                     {
                         MessageBox.Show("No se encontraron archivos .xlsx en la carpeta seleccionada.", "Información");
+                    }else
+                    {
+                        lblTotalArchivos.Text = $"Total archivos encontrados: {archivosExcel.Length}";
                     }
                 }
             }
         }
 
 
-        private void btnProcesar_Click(object sender, EventArgs e)
+        private async void btnProcesar_Click(object sender, EventArgs e)
         {
             string oldLink = txtOldPath.Text.Trim();
             string newLink = txtNewPath.Text.Trim();
-            bool breakLinkIfNotFound = true;
 
             if (string.IsNullOrWhiteSpace(oldLink) || string.IsNullOrWhiteSpace(newLink))
             {
@@ -61,83 +67,123 @@ namespace ExcelProviderForms
             }
 
             listBox2.Items.Clear();
+            int totalArchivos = listBox1.Items.Count;
 
-            foreach (ExcelArchivo item in listBox1.Items)
+            progressBar1.Minimum = 0;
+            progressBar1.Maximum = totalArchivos;
+            progressBar1.Value = 0;
+
+            await Task.Run(() =>
             {
-                string excelPath = item.RutaCompleta;
-                Excel.Application excelApp = null;
-                Excel.Workbook workbook = null;
+                int contador = 0;
 
-                try
+                foreach (ExcelArchivo item in listBox1.Items)
                 {
-                    excelApp = new Excel.Application();
-                    excelApp.DisplayAlerts = false;
-                    excelApp.AskToUpdateLinks = false;
-                    excelApp.AlertBeforeOverwriting = false;
+                    contador++;
+                    string progreso = $"Procesando archivo {contador} de {totalArchivos}";
 
-                    workbook = excelApp.Workbooks.Open(excelPath, UpdateLinks: 0, ReadOnly: false);
-                    var rawLinks = workbook.LinkSources(Excel.XlLink.xlExcelLinks);
-
-                    if (rawLinks is Array links)
+                    Invoke((MethodInvoker)(() =>
                     {
-                        foreach (var obj in links)
+                        lblProgreso.Text = progreso;
+                        progressBar1.Value = contador;
+                    }));
+
+                    string excelPath = item.RutaCompleta;
+                    Excel.Application excelApp = null;
+                    Excel.Workbook workbook = null;
+
+                    try
+                    {
+                        excelApp = new Excel.Application
                         {
-                            string link = obj.ToString();
+                            DisplayAlerts = false,
+                            AskToUpdateLinks = false,
+                            AlertBeforeOverwriting = false
+                        };
 
-                            if (link.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
+                        workbook = excelApp.Workbooks.Open(
+                            excelPath,
+                            UpdateLinks: 0,
+                            ReadOnly: false,
+                            CorruptLoad: Excel.XlCorruptLoad.xlRepairFile
+                        );
+
+                        var rawLinks = workbook.LinkSources(Excel.XlLink.xlExcelLinks);
+
+                        if (rawLinks is Array links)
+                        {
+                            foreach (var obj in links)
                             {
-                                string updatedLink = link.Replace(oldLink, newLink);
+                                string link = obj.ToString();
 
-                                if (File.Exists(updatedLink))
+                                if (link.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    workbook.ChangeLink(link, updatedLink, Excel.XlLinkType.xlLinkTypeExcelLinks);
-                                    listBox2.Items.Add($"{item.Nombre}: ✅ {link} → {updatedLink}");
-                                }
-                                else if (breakLinkIfNotFound)
-                                {
-                                    workbook.BreakLink(link, Excel.XlLinkType.xlLinkTypeExcelLinks);
-                                    listBox2.Items.Add($"{item.Nombre}: ⚠️ {link} roto (archivo no encontrado en {updatedLink})");
+                                    string updatedLink = Regex.Replace(link, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
+
+                                    if (File.Exists(updatedLink))
+                                    {
+                                        workbook.ChangeLink(link, updatedLink, Excel.XlLinkType.xlLinkTypeExcelLinks);
+                                        Invoke((MethodInvoker)(() =>
+                                        {
+                                            listBox2.Items.Add($"{item.Nombre}: ✅ {link} → {updatedLink}");
+                                        }));
+                                    }
+                                    else
+                                    {
+                                        workbook.BreakLink(link, Excel.XlLinkType.xlLinkTypeExcelLinks);
+                                        Invoke((MethodInvoker)(() =>
+                                        {
+                                            listBox2.Items.Add($"{item.Nombre}: ⚠️ {link} roto → vínculo eliminado, valores conservados");
+                                        }));
+                                    }
                                 }
                                 else
                                 {
-                                    listBox2.Items.Add($"{item.Nombre}: ⚠️ {link} no encontrado, vínculo original mantenido");
+                                    Invoke((MethodInvoker)(() =>
+                                    {
+                                        listBox2.Items.Add($"{item.Nombre}: 🔗 Vínculo sin cambios: {link}");
+                                    }));
                                 }
                             }
-                            else
-                            {
-                                listBox2.Items.Add($"{item.Nombre}: 🔗 Vínculo sin cambios: {link}");
-                            }
                         }
-                    }
-                    else
-                    {
-                        listBox2.Items.Add($"{item.Nombre}: 📭 Sin vínculos externos");
-                    }
+                        else
+                        {
+                            Invoke((MethodInvoker)(() =>
+                            {
+                                listBox2.Items.Add($"{item.Nombre}: 📭 Sin vínculos externos");
+                            }));
+                        }
 
-                    workbook.SaveAs(excelPath, AccessMode: Excel.XlSaveAsAccessMode.xlNoChange);
-                }
-                catch (Exception ex)
-                {
-                    listBox2.Items.Add($"{item.Nombre}: ❌ ERROR - {ex.Message}");
-                }
-                finally
-                {
-                    if (workbook != null)
-                    {
-                        workbook.Close(false);
-                        Marshal.ReleaseComObject(workbook);
+                        workbook.SaveAs(excelPath, AccessMode: Excel.XlSaveAsAccessMode.xlNoChange);
                     }
-                    if (excelApp != null)
+                    catch (Exception ex)
                     {
-                        excelApp.Quit();
-                        Marshal.ReleaseComObject(excelApp);
+                        Invoke((MethodInvoker)(() =>
+                        {
+                            listBox2.Items.Add($"{item.Nombre}: ❌ ERROR - {ex.Message}");
+                        }));
                     }
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
+                    finally
+                    {
+                        if (workbook != null)
+                        {
+                            workbook.Close(false);
+                            Marshal.ReleaseComObject(workbook);
+                        }
+                        if (excelApp != null)
+                        {
+                            excelApp.Quit();
+                            Marshal.ReleaseComObject(excelApp);
+                        }
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                    }
                 }
-            }
+            });
 
             MessageBox.Show("✅ Procesamiento completado.", "Listo");
+            lblProgreso.Text = "Procesamiento completado.";
+
         }
 
     }

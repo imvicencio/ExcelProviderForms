@@ -37,13 +37,14 @@
             this.labelNew = new System.Windows.Forms.Label();
             this.txtOldPath = new System.Windows.Forms.TextBox();
             this.txtNewPath = new System.Windows.Forms.TextBox();
-            this.PathLabel = new System.Windows.Forms.Label();
-            this.txtPath = new System.Windows.Forms.TextBox();
+            this.lblTotalArchivos = new System.Windows.Forms.Label();
+            this.lblProgreso = new System.Windows.Forms.Label();
+            this.progressBar1 = new System.Windows.Forms.ProgressBar();
             this.SuspendLayout();
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(30, 123);
+            this.button1.Location = new System.Drawing.Point(27, 88);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(145, 23);
             this.button1.TabIndex = 0;
@@ -54,6 +55,7 @@
             // listBox1
             // 
             this.listBox1.FormattingEnabled = true;
+            this.listBox1.HorizontalScrollbar = true;
             this.listBox1.Location = new System.Drawing.Point(30, 152);
             this.listBox1.Name = "listBox1";
             this.listBox1.Size = new System.Drawing.Size(309, 368);
@@ -72,9 +74,10 @@
             // listBox2
             // 
             this.listBox2.FormattingEnabled = true;
+            this.listBox2.HorizontalScrollbar = true;
             this.listBox2.Location = new System.Drawing.Point(365, 152);
             this.listBox2.Name = "listBox2";
-            this.listBox2.Size = new System.Drawing.Size(423, 368);
+            this.listBox2.Size = new System.Drawing.Size(1046, 368);
             this.listBox2.TabIndex = 3;
             // 
             // labelOld
@@ -109,29 +112,39 @@
             this.txtNewPath.Size = new System.Drawing.Size(240, 20);
             this.txtNewPath.TabIndex = 7;
             // 
-            // PathLabel
+            // lblTotalArchivos
             // 
-            this.PathLabel.AutoSize = true;
-            this.PathLabel.Location = new System.Drawing.Point(27, 79);
-            this.PathLabel.Name = "PathLabel";
-            this.PathLabel.Size = new System.Drawing.Size(29, 13);
-            this.PathLabel.TabIndex = 8;
-            this.PathLabel.Text = "Path";
+            this.lblTotalArchivos.AutoSize = true;
+            this.lblTotalArchivos.Location = new System.Drawing.Point(30, 551);
+            this.lblTotalArchivos.Name = "lblTotalArchivos";
+            this.lblTotalArchivos.Size = new System.Drawing.Size(0, 13);
+            this.lblTotalArchivos.TabIndex = 8;
             // 
-            // txtPath
+            // lblProgreso
             // 
-            this.txtPath.Location = new System.Drawing.Point(96, 79);
-            this.txtPath.Name = "txtPath";
-            this.txtPath.Size = new System.Drawing.Size(240, 20);
-            this.txtPath.TabIndex = 9;
+            this.lblProgreso.AutoSize = true;
+            this.lblProgreso.Location = new System.Drawing.Point(365, 550);
+            this.lblProgreso.Name = "lblProgreso";
+            this.lblProgreso.Size = new System.Drawing.Size(0, 13);
+            this.lblProgreso.TabIndex = 9;
+            // 
+            // progressBar1
+            // 
+            this.progressBar1.Location = new System.Drawing.Point(463, 123);
+            this.progressBar1.Name = "progressBar1";
+            this.progressBar1.Size = new System.Drawing.Size(948, 23);
+            this.progressBar1.Step = 1;
+            this.progressBar1.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
+            this.progressBar1.TabIndex = 10;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 532);
-            this.Controls.Add(this.txtPath);
-            this.Controls.Add(this.PathLabel);
+            this.ClientSize = new System.Drawing.Size(1423, 576);
+            this.Controls.Add(this.progressBar1);
+            this.Controls.Add(this.lblProgreso);
+            this.Controls.Add(this.lblTotalArchivos);
             this.Controls.Add(this.txtNewPath);
             this.Controls.Add(this.txtOldPath);
             this.Controls.Add(this.labelNew);
@@ -159,8 +172,9 @@
         private System.Windows.Forms.Label labelNew;
         private System.Windows.Forms.TextBox txtOldPath;
         private System.Windows.Forms.TextBox txtNewPath;
-        private System.Windows.Forms.Label PathLabel;
-        private System.Windows.Forms.TextBox txtPath;
+        private System.Windows.Forms.Label lblTotalArchivos;
+        private System.Windows.Forms.Label lblProgreso;
+        private System.Windows.Forms.ProgressBar progressBar1;
     }
 }
 
