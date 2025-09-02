@@ -2,11 +2,8 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Excel = Microsoft.Office.Interop.Excel;
 
 namespace ExcelProviderForms
 {
@@ -20,13 +17,14 @@ namespace ExcelProviderForms
             txtOldPath.Text = @"\\fs-plaza1";
             txtNewPath.Text = @"\\nas-plaza1";
 
-            // Inicializar el manager de base de datos
+            // Inicializar DB
             dbManager = new DatabaseManager();
-        }
 
-        private void Form1_Load(object sender, EventArgs e)
-        {
-
+            // Inicializar ComboBox
+            cmbTipoArchivo.Items.Add("Excel");
+            cmbTipoArchivo.Items.Add("PowerPoint");
+            cmbTipoArchivo.Items.Add("Ambos");
+            cmbTipoArchivo.SelectedIndex = 0;
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -34,48 +32,37 @@ namespace ExcelProviderForms
             using (var dialog = new CommonOpenFileDialog())
             {
                 dialog.IsFolderPicker = true;
-                dialog.Title = "Selecciona una carpeta con archivos Excel";
+                dialog.Title = "Selecciona una carpeta con archivos";
 
                 if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
                 {
-                    //string[] archivosExcel = Directory.GetFiles(dialog.FileName, "*.xlsx", SearchOption.AllDirectories);
+                    string seleccion = cmbTipoArchivo.SelectedItem.ToString();
 
-                    string[] archivosExcel = Directory.GetFiles(dialog.FileName, "*.*", SearchOption.AllDirectories)
-    .Where(f => f.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-                f.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
-    .ToArray();
+                    string[] archivos = Directory.GetFiles(dialog.FileName, "*.*", SearchOption.AllDirectories)
+                        .Where(f =>
+                            (seleccion == "Excel" &&
+                                (f.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))) ||
+                            (seleccion == "PowerPoint" &&
+                                (f.EndsWith(".pptx", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".ppt", StringComparison.OrdinalIgnoreCase))) ||
+                            (seleccion == "Ambos" &&
+                                (f.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ||
+                                 f.EndsWith(".pptx", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".ppt", StringComparison.OrdinalIgnoreCase)))
+                        )
+                        .ToArray();
 
                     listBox1.Items.Clear();
-                    int archivosPendientes = 0;
-                    int archivosYaProcesados = 0;
 
-                    foreach (string archivo in archivosExcel)
+                    foreach (string archivo in archivos)
                     {
-                        var excelArchivo = new ExcelArchivo(Path.GetFileName(archivo), archivo);
+                        ArchivoOffice archivoObj;
 
-                        // Registrar el archivo en la base de datos si no existe
-                        dbManager.RegistrarArchivo(excelArchivo.Nombre, archivo);
-
-                        // Verificar si ya fue procesado
-                        if (dbManager.EstaProcesado(archivo))
-                        {
-                            archivosYaProcesados++;
-                        }
+                        if (archivo.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) || archivo.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
+                            archivoObj = new ExcelArchivo(Path.GetFileName(archivo), archivo);
                         else
-                        {
-                            archivosPendientes++;
-                        }
+                            archivoObj = new PowerPointArchivo(Path.GetFileName(archivo), archivo);
 
-                        listBox1.Items.Add(excelArchivo);
-                    }
-
-                    if (archivosExcel.Length == 0)
-                    {
-                        MessageBox.Show("No se encontraron archivos .xlsx en la carpeta seleccionada.", "Información");
-                    }
-                    else
-                    {
-                        lblTotalArchivos.Text = $"Total: {archivosExcel.Length} | Pendientes: {archivosPendientes} | Ya procesados: {archivosYaProcesados}";
+                        dbManager.RegistrarArchivo(archivoObj.Nombre, archivoObj.RutaCompleta);
+                        listBox1.Items.Add(archivoObj);
                     }
                 }
             }
@@ -88,170 +75,34 @@ namespace ExcelProviderForms
 
             if (string.IsNullOrWhiteSpace(oldLink) || string.IsNullOrWhiteSpace(newLink))
             {
-                MessageBox.Show("Por favor ingresa ambas rutas: antigua y nueva.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Por favor ingresa ambas rutas: antigua y nueva.", "Error");
                 return;
             }
 
             listBox2.Items.Clear();
-            int totalArchivos = listBox1.Items.Count;
-            int archivosOmitidos = 0;
-            int archivosProcesados = 0;
-
-            progressBar1.Minimum = 0;
-            progressBar1.Maximum = totalArchivos;
-            progressBar1.Value = 0;
 
             await Task.Run(() =>
             {
-                int contador = 0;
-
-                foreach (ExcelArchivo item in listBox1.Items)
+                foreach (ArchivoOffice item in listBox1.Items)
                 {
-                    contador++;
-                    string progreso = $"Procesando archivo {item.Nombre} -- {contador} de {totalArchivos}";
-
-                    Invoke((MethodInvoker)(() =>
-                    {
-                        lblProgreso.Text = progreso;
-                        progressBar1.Value = contador;
-                    }));
-
-                    // Verificar si ya fue procesado
-                    if (dbManager.EstaProcesado(item.RutaCompleta))
-                    {
-                        archivosOmitidos++;
-                        dbManager.Loguear(item.Nombre, "Archivo ya procesado previamente, omitiendo", "OMITIDO",
-                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⏭️ {mensaje}"))));
-                        continue;
-                    }
-
-                    string excelPath = item.RutaCompleta;
-                    Excel.Application excelApp = null;
-                    Excel.Workbook workbook = null;
-                    bool procesamientoExitoso = true;
-
                     try
                     {
-                        dbManager.Loguear(item.Nombre, "Iniciando procesamiento", "INICIO",
-                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔄 {mensaje}"))));
+                        item.Procesar(oldLink, newLink, dbManager,
+                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add(mensaje))));
 
-                        excelApp = new Excel.Application
-                        {
-                            DisplayAlerts = false,
-                            AskToUpdateLinks = false,
-                            AlertBeforeOverwriting = false
-                        };
-
-                        workbook = excelApp.Workbooks.Open(
-                            excelPath,
-                            UpdateLinks: 0,
-                            ReadOnly: false,
-                            CorruptLoad: Excel.XlCorruptLoad.xlRepairFile
-                        );
-
-                        var rawLinks = workbook.LinkSources(Excel.XlLink.xlExcelLinks);
-
-                        if (rawLinks is Array links)
-                        {
-                            int vinculosActualizados = 0;
-                            int vinculosRotos = 0;
-                            int vinculosSinCambios = 0;
-
-                            foreach (var obj in links)
-                            {
-                                string link = obj.ToString();
-
-                                if (link.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    string updatedLink = Regex.Replace(link, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
-
-                                    if (File.Exists(updatedLink))
-                                    {
-                                        workbook.ChangeLink(link, updatedLink, Excel.XlLinkType.xlLinkTypeExcelLinks);
-                                        vinculosActualizados++;
-
-                                        dbManager.Loguear(item.Nombre, $"Vínculo actualizado: {link} → {updatedLink}", "ACTUALIZADO",
-                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
-                                    }
-                                    else
-                                    {
-                                        workbook.BreakLink(link, Excel.XlLinkType.xlLinkTypeExcelLinks);
-                                        vinculosRotos++;
-
-                                        dbManager.Loguear(item.Nombre, $"Vínculo roto eliminado: {link}", "ROTO",
-                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
-                                    }
-                                }
-                                else
-                                {
-                                    vinculosSinCambios++;
-                                    dbManager.Loguear(item.Nombre, $"Vínculo sin cambios: {link}", "SIN_CAMBIOS",
-                                        mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔗 {mensaje}"))));
-                                }
-                            }
-
-                            // Log resumen
-                            dbManager.Loguear(item.Nombre,
-                                $"Resumen: {vinculosActualizados} actualizados, {vinculosRotos} eliminados, {vinculosSinCambios} sin cambios",
-                                "RESUMEN");
-                        }
-                        else
-                        {
-                            dbManager.Loguear(item.Nombre, "Sin vínculos externos", "SIN_VINCULOS",
-                                mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"📭 {mensaje}"))));
-                        }
-
-                        workbook.SaveAs(excelPath, AccessMode: Excel.XlSaveAsAccessMode.xlNoChange);
-                        archivosProcesados++;
-
-                        dbManager.Loguear(item.Nombre, "Procesamiento completado exitosamente", "COMPLETADO");
+                        dbManager.MarcarProcesado(item.RutaCompleta);
                     }
                     catch (Exception ex)
                     {
-                        procesamientoExitoso = false;
-                        dbManager.Loguear(item.Nombre, $"ERROR: {ex.Message}", "ERROR",
-                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"❌ {mensaje}"))));
-                    }
-                    finally
-                    {
-                        if (workbook != null)
-                        {
-                            workbook.Close(false);
-                            Marshal.ReleaseComObject(workbook);
-                        }
-                        if (excelApp != null)
-                        {
-                            excelApp.Quit();
-                            Marshal.ReleaseComObject(excelApp);
-                        }
-                        GC.Collect();
-                        GC.WaitForPendingFinalizers();
-
-                        // Marcar como procesado solo si fue exitoso
-                        if (procesamientoExitoso)
-                        {
-                            dbManager.MarcarProcesado(item.RutaCompleta);
-                        }
-                        else
-                        {
-                            dbManager.MarcarFallido(item.RutaCompleta);
-                        }
+                        dbManager.MarcarFallido(item.RutaCompleta);
+                        Invoke((MethodInvoker)(() => listBox2.Items.Add($"❌ ERROR en {item.Nombre}: {ex.Message}")));
                     }
                 }
             });
 
-            string mensajeResumen = $"✅ Procesamiento completado.\n" +
-                                  $"Procesados: {archivosProcesados}\n" +
-                                  $"Omitidos (ya procesados): {archivosOmitidos}";
-
-            MessageBox.Show(mensajeResumen, "Listo");
-            lblProgreso.Text = "Procesamiento completado.";
-
-            // Log final del proceso
-            dbManager.Loguear("SISTEMA", $"Lote completado - {archivosProcesados} procesados, {archivosOmitidos} omitidos", "LOTE_COMPLETADO");
+            MessageBox.Show("✅ Procesamiento completado.");
         }
 
-        // Método para limpiar recursos al cerrar la aplicación
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             dbManager?.Dispose();

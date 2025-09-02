@@ -40,6 +40,7 @@
             this.lblTotalArchivos = new System.Windows.Forms.Label();
             this.lblProgreso = new System.Windows.Forms.Label();
             this.progressBar1 = new System.Windows.Forms.ProgressBar();
+            this.cmbTipoArchivo = new System.Windows.Forms.ComboBox();
             this.SuspendLayout();
             // 
             // button1
@@ -137,11 +138,20 @@
             this.progressBar1.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
             this.progressBar1.TabIndex = 10;
             // 
+            // cmbTipoArchivo
+            // 
+            this.cmbTipoArchivo.FormattingEnabled = true;
+            this.cmbTipoArchivo.Location = new System.Drawing.Point(368, 25);
+            this.cmbTipoArchivo.Name = "cmbTipoArchivo";
+            this.cmbTipoArchivo.Size = new System.Drawing.Size(121, 21);
+            this.cmbTipoArchivo.TabIndex = 11;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1423, 576);
+            this.Controls.Add(this.cmbTipoArchivo);
             this.Controls.Add(this.progressBar1);
             this.Controls.Add(this.lblProgreso);
             this.Controls.Add(this.lblTotalArchivos);
@@ -174,6 +184,7 @@
         private System.Windows.Forms.Label lblTotalArchivos;
         private System.Windows.Forms.Label lblProgreso;
         private System.Windows.Forms.ProgressBar progressBar1;
+        private System.Windows.Forms.ComboBox cmbTipoArchivo;
     }
 }
 
