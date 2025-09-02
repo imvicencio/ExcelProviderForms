@@ -1,12 +1,15 @@
-﻿using Microsoft.WindowsAPICodePack.Dialogs;
+﻿using ExcelProviderForms;
+using Microsoft.Office.Core;
+using Microsoft.WindowsAPICodePack.Dialogs;
 using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 using System.Windows.Forms;
-using Excel = Microsoft.Office.Interop.Excel;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace ExcelProviderForms
 {
@@ -34,27 +37,26 @@ namespace ExcelProviderForms
             using (var dialog = new CommonOpenFileDialog())
             {
                 dialog.IsFolderPicker = true;
-                dialog.Title = "Selecciona una carpeta con archivos Excel";
+                dialog.Title = "Selecciona una carpeta con archivos PowerPoint";
 
                 if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
                 {
-                    //string[] archivosExcel = Directory.GetFiles(dialog.FileName, "*.xlsx", SearchOption.AllDirectories);
-
-                    string[] archivosExcel = Directory.GetFiles(dialog.FileName, "*.*", SearchOption.AllDirectories)
-    .Where(f => f.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-                f.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
-    .ToArray();
+                    string[] archivosPowerPoint = Directory.GetFiles(dialog.FileName, "*.*", SearchOption.AllDirectories)
+        .Where(f => f.EndsWith(".pptx", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".ppt", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".pptm", StringComparison.OrdinalIgnoreCase))
+        .ToArray();
 
                     listBox1.Items.Clear();
                     int archivosPendientes = 0;
                     int archivosYaProcesados = 0;
 
-                    foreach (string archivo in archivosExcel)
+                    foreach (string archivo in archivosPowerPoint)
                     {
-                        var excelArchivo = new ExcelArchivo(Path.GetFileName(archivo), archivo);
+                        var pptArchivo = new PowerPointArchivo(Path.GetFileName(archivo), archivo);
 
                         // Registrar el archivo en la base de datos si no existe
-                        dbManager.RegistrarArchivo(excelArchivo.Nombre, archivo);
+                        dbManager.RegistrarArchivo(pptArchivo.Nombre, archivo);
 
                         // Verificar si ya fue procesado
                         if (dbManager.EstaProcesado(archivo))
@@ -66,16 +68,16 @@ namespace ExcelProviderForms
                             archivosPendientes++;
                         }
 
-                        listBox1.Items.Add(excelArchivo);
+                        listBox1.Items.Add(pptArchivo);
                     }
 
-                    if (archivosExcel.Length == 0)
+                    if (archivosPowerPoint.Length == 0)
                     {
-                        MessageBox.Show("No se encontraron archivos .xlsx en la carpeta seleccionada.", "Información");
+                        MessageBox.Show("No se encontraron archivos PowerPoint en la carpeta seleccionada.", "Información");
                     }
                     else
                     {
-                        lblTotalArchivos.Text = $"Total: {archivosExcel.Length} | Pendientes: {archivosPendientes} | Ya procesados: {archivosYaProcesados}";
+                        lblTotalArchivos.Text = $"Total: {archivosPowerPoint.Length} | Pendientes: {archivosPendientes} | Ya procesados: {archivosYaProcesados}";
                     }
                 }
             }
@@ -105,7 +107,7 @@ namespace ExcelProviderForms
             {
                 int contador = 0;
 
-                foreach (ExcelArchivo item in listBox1.Items)
+                foreach (PowerPointArchivo item in listBox1.Items)
                 {
                     contador++;
                     string progreso = $"Procesando archivo {item.Nombre} -- {contador} de {totalArchivos}";
@@ -125,9 +127,9 @@ namespace ExcelProviderForms
                         continue;
                     }
 
-                    string excelPath = item.RutaCompleta;
-                    Excel.Application excelApp = null;
-                    Excel.Workbook workbook = null;
+                    string pptPath = item.RutaCompleta;
+                    PowerPoint.Application pptApp = null;
+                    PowerPoint.Presentation presentation = null;
                     bool procesamientoExitoso = true;
 
                     try
@@ -135,73 +137,31 @@ namespace ExcelProviderForms
                         dbManager.Loguear(item.Nombre, "Iniciando procesamiento", "INICIO",
                             mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔄 {mensaje}"))));
 
-                        excelApp = new Excel.Application
+                        pptApp = new PowerPoint.Application();
+                        presentation = pptApp.Presentations.Open(pptPath);
+
+                        int vinculosActualizados = 0;
+                        int vinculosRotos = 0;
+                        int vinculosSinCambios = 0;
+
+                        // Procesar vínculos en diapositivas
+                        ProcessSlides(presentation, oldLink, newLink, item.Nombre, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+
+                        // Procesar vínculos en masters
+                        ProcessMasters(presentation, oldLink, newLink, item.Nombre, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+
+                        // Log resumen
+                        dbManager.Loguear(item.Nombre,
+                            $"Resumen: {vinculosActualizados} actualizados, {vinculosRotos} eliminados, {vinculosSinCambios} sin cambios",
+                            "RESUMEN");
+
+                        if (vinculosActualizados == 0 && vinculosRotos == 0 && vinculosSinCambios == 0)
                         {
-                            DisplayAlerts = false,
-                            AskToUpdateLinks = false,
-                            AlertBeforeOverwriting = false
-                        };
-
-                        workbook = excelApp.Workbooks.Open(
-                            excelPath,
-                            UpdateLinks: 0,
-                            ReadOnly: false,
-                            CorruptLoad: Excel.XlCorruptLoad.xlRepairFile
-                        );
-
-                        var rawLinks = workbook.LinkSources(Excel.XlLink.xlExcelLinks);
-
-                        if (rawLinks is Array links)
-                        {
-                            int vinculosActualizados = 0;
-                            int vinculosRotos = 0;
-                            int vinculosSinCambios = 0;
-
-                            foreach (var obj in links)
-                            {
-                                string link = obj.ToString();
-
-                                if (link.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    string updatedLink = Regex.Replace(link, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
-
-                                    if (File.Exists(updatedLink))
-                                    {
-                                        workbook.ChangeLink(link, updatedLink, Excel.XlLinkType.xlLinkTypeExcelLinks);
-                                        vinculosActualizados++;
-
-                                        dbManager.Loguear(item.Nombre, $"Vínculo actualizado: {link} → {updatedLink}", "ACTUALIZADO",
-                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
-                                    }
-                                    else
-                                    {
-                                        workbook.BreakLink(link, Excel.XlLinkType.xlLinkTypeExcelLinks);
-                                        vinculosRotos++;
-
-                                        dbManager.Loguear(item.Nombre, $"Vínculo roto eliminado: {link}", "ROTO",
-                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
-                                    }
-                                }
-                                else
-                                {
-                                    vinculosSinCambios++;
-                                    dbManager.Loguear(item.Nombre, $"Vínculo sin cambios: {link}", "SIN_CAMBIOS",
-                                        mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔗 {mensaje}"))));
-                                }
-                            }
-
-                            // Log resumen
-                            dbManager.Loguear(item.Nombre,
-                                $"Resumen: {vinculosActualizados} actualizados, {vinculosRotos} eliminados, {vinculosSinCambios} sin cambios",
-                                "RESUMEN");
-                        }
-                        else
-                        {
-                            dbManager.Loguear(item.Nombre, "Sin vínculos externos", "SIN_VINCULOS",
+                            dbManager.Loguear(item.Nombre, "Sin vínculos encontrados", "SIN_VINCULOS",
                                 mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"📭 {mensaje}"))));
                         }
 
-                        workbook.SaveAs(excelPath, AccessMode: Excel.XlSaveAsAccessMode.xlNoChange);
+                        presentation.Save();
                         archivosProcesados++;
 
                         dbManager.Loguear(item.Nombre, "Procesamiento completado exitosamente", "COMPLETADO");
@@ -214,15 +174,15 @@ namespace ExcelProviderForms
                     }
                     finally
                     {
-                        if (workbook != null)
+                        if (presentation != null)
                         {
-                            workbook.Close(false);
-                            Marshal.ReleaseComObject(workbook);
+                            presentation.Close();
+                            Marshal.ReleaseComObject(presentation);
                         }
-                        if (excelApp != null)
+                        if (pptApp != null)
                         {
-                            excelApp.Quit();
-                            Marshal.ReleaseComObject(excelApp);
+                            pptApp.Quit();
+                            Marshal.ReleaseComObject(pptApp);
                         }
                         GC.Collect();
                         GC.WaitForPendingFinalizers();
@@ -251,11 +211,306 @@ namespace ExcelProviderForms
             dbManager.Loguear("SISTEMA", $"Lote completado - {archivosProcesados} procesados, {archivosOmitidos} omitidos", "LOTE_COMPLETADO");
         }
 
+        private void ProcessSlides(PowerPoint.Presentation presentation, string oldLink, string newLink, string nombreArchivo,
+            ref int vinculosActualizados, ref int vinculosRotos, ref int vinculosSinCambios)
+        {
+            foreach (PowerPoint.Slide slide in presentation.Slides)
+            {
+                ProcessShapes(slide.Shapes, oldLink, newLink, nombreArchivo, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+            }
+        }
+
+        private void ProcessMasters(PowerPoint.Presentation presentation, string oldLink, string newLink, string nombreArchivo,
+            ref int vinculosActualizados, ref int vinculosRotos, ref int vinculosSinCambios)
+        {
+            try
+            {
+                foreach (PowerPoint.Master master in presentation.Designs.Cast<PowerPoint.Design>().Select(d => d.SlideMaster))
+                {
+                    ProcessShapes(master.Shapes, oldLink, newLink, nombreArchivo,
+                                  ref vinculosActualizados,
+                                  ref vinculosRotos,
+                                  ref vinculosSinCambios);
+
+                    foreach (PowerPoint.CustomLayout layout in master.CustomLayouts)
+                    {
+                        ProcessShapes(layout.Shapes, oldLink, newLink, nombreArchivo,
+                                      ref vinculosActualizados,
+                                      ref vinculosRotos,
+                                      ref vinculosSinCambios);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                dbManager.Loguear(nombreArchivo, $"Error procesando masters: {ex.Message}", "ERROR");
+            }
+        }
+
+        private void ProcessShapes(PowerPoint.Shapes shapes, string oldLink, string newLink, string nombreArchivo,
+            ref int vinculosActualizados, ref int vinculosRotos, ref int vinculosSinCambios)
+        {
+            foreach (PowerPoint.Shape shape in shapes)
+            {
+                try
+                {
+                    // Procesar objetos OLE vinculados
+                    if (shape.Type == MsoShapeType.msoLinkedOLEObject)
+                    {
+                        ProcessOLELink(shape, oldLink, newLink, nombreArchivo, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+                    }
+
+                    // Procesar imágenes vinculadas
+                    if (shape.Type == MsoShapeType.msoLinkedPicture)
+                    {
+                        ProcessPictureLink(shape, oldLink, newLink, nombreArchivo, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+                    }
+
+                    // Procesar hipervínculos en formas
+                    ProcessHyperlinks(shape, oldLink, newLink, nombreArchivo, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+
+                    // Procesar formas agrupadas recursivamente
+                    if (shape.Type == MsoShapeType.msoGroup)
+                    {
+                        ProcessShapes((PowerPoint.Shapes)shape.GroupItems, oldLink, newLink, nombreArchivo, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+                    }
+
+                    // Procesar vínculos en texto
+                    ProcessTextFrameLinks(shape, oldLink, newLink, nombreArchivo, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+                }
+                catch (Exception ex)
+                {
+                    // Log del error pero continuar con las siguientes formas
+                    dbManager.Loguear(nombreArchivo, $"Error procesando forma: {ex.Message}", "ERROR_FORMA");
+                }
+            }
+        }
+
+        private void ProcessOLELink(PowerPoint.Shape shape, string oldLink, string newLink, string nombreArchivo,
+            ref int vinculosActualizados, ref int vinculosRotos, ref int vinculosSinCambios)
+        {
+            try
+            {
+                if (shape.LinkFormat != null)
+                {
+                    string currentPath = shape.LinkFormat.SourceFullName;
+                    if (!string.IsNullOrEmpty(currentPath))
+                    {
+                        if (currentPath.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
+                        {
+                            string updatedPath = Regex.Replace(currentPath, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
+
+                            if (File.Exists(updatedPath))
+                            {
+                                shape.LinkFormat.SourceFullName = updatedPath;
+                                vinculosActualizados++;
+                                dbManager.Loguear(nombreArchivo, $"OLE actualizado: {currentPath} → {updatedPath}", "ACTUALIZADO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
+                            }
+                            else
+                            {
+                                vinculosRotos++;
+                                dbManager.Loguear(nombreArchivo, $"OLE roto encontrado: {currentPath}", "ROTO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
+                            }
+                        }
+                        else
+                        {
+                            vinculosSinCambios++;
+                            dbManager.Loguear(nombreArchivo, $"OLE sin cambios: {currentPath}", "SIN_CAMBIOS",
+                                mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔗 {mensaje}"))));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                dbManager.Loguear(nombreArchivo, $"Error en OLE: {ex.Message}", "ERROR");
+            }
+        }
+
+        private void ProcessPictureLink(PowerPoint.Shape shape, string oldLink, string newLink, string nombreArchivo,
+            ref int vinculosActualizados, ref int vinculosRotos, ref int vinculosSinCambios)
+        {
+            try
+            {
+                if (shape.LinkFormat != null)
+                {
+                    string currentPath = shape.LinkFormat.SourceFullName;
+                    if (!string.IsNullOrEmpty(currentPath))
+                    {
+                        if (currentPath.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
+                        {
+                            string updatedPath = Regex.Replace(currentPath, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
+
+                            if (File.Exists(updatedPath))
+                            {
+                                shape.LinkFormat.SourceFullName = updatedPath;
+                                vinculosActualizados++;
+                                dbManager.Loguear(nombreArchivo, $"Imagen actualizada: {currentPath} → {updatedPath}", "ACTUALIZADO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
+                            }
+                            else
+                            {
+                                vinculosRotos++;
+                                dbManager.Loguear(nombreArchivo, $"Imagen rota encontrada: {currentPath}", "ROTO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
+                            }
+                        }
+                        else
+                        {
+                            vinculosSinCambios++;
+                            dbManager.Loguear(nombreArchivo, $"Imagen sin cambios: {currentPath}", "SIN_CAMBIOS",
+                                mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔗 {mensaje}"))));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                dbManager.Loguear(nombreArchivo, $"Error en imagen: {ex.Message}", "ERROR");
+            }
+        }
+
+        private void ProcessHyperlinks(PowerPoint.Shape shape, string oldLink, string newLink, string nombreArchivo,
+            ref int vinculosActualizados, ref int vinculosRotos, ref int vinculosSinCambios)
+        {
+            try
+            {
+                if (shape.ActionSettings != null)
+                {
+                    ProcessActionSetting(shape.ActionSettings[PowerPoint.PpMouseActivation.ppMouseClick],
+                        oldLink, newLink, nombreArchivo, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+
+                    ProcessActionSetting(shape.ActionSettings[PowerPoint.PpMouseActivation.ppMouseOver],
+                        oldLink, newLink, nombreArchivo, ref vinculosActualizados, ref vinculosRotos, ref vinculosSinCambios);
+                }
+            }
+            catch (Exception ex)
+            {
+                dbManager.Loguear(nombreArchivo, $"Error en hipervínculos: {ex.Message}", "ERROR");
+            }
+        }
+
+        private void ProcessActionSetting(PowerPoint.ActionSetting actionSetting, string oldLink, string newLink, string nombreArchivo,
+            ref int vinculosActualizados, ref int vinculosRotos, ref int vinculosSinCambios)
+        {
+            try
+            {
+                if (actionSetting.Action == PowerPoint.PpActionType.ppActionHyperlink)
+                {
+                    string currentAddress = actionSetting.Hyperlink.Address;
+                    if (!string.IsNullOrEmpty(currentAddress))
+                    {
+                        if (currentAddress.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
+                        {
+                            string updatedAddress = Regex.Replace(currentAddress, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
+
+                            if (File.Exists(updatedAddress) || Directory.Exists(updatedAddress))
+                            {
+                                actionSetting.Hyperlink.Address = updatedAddress;
+                                vinculosActualizados++;
+                                dbManager.Loguear(nombreArchivo, $"Hipervínculo actualizado: {currentAddress} → {updatedAddress}", "ACTUALIZADO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
+                            }
+                            else
+                            {
+                                vinculosRotos++;
+                                dbManager.Loguear(nombreArchivo, $"Hipervínculo roto: {currentAddress}", "ROTO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
+                            }
+                        }
+                        else
+                        {
+                            vinculosSinCambios++;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                dbManager.Loguear(nombreArchivo, $"Error en ActionSetting: {ex.Message}", "ERROR");
+            }
+        }
+
+        private void ProcessTextFrameLinks(PowerPoint.Shape shape, string oldLink, string newLink, string nombreArchivo,
+            ref int vinculosActualizados, ref int vinculosRotos, ref int vinculosSinCambios)
+        {
+            try
+            {
+                if (shape.HasTextFrame == MsoTriState.msoTrue &&
+                    shape.TextFrame.HasText == MsoTriState.msoTrue)
+                {
+                    var textRange = shape.TextFrame.TextRange;
+
+                    // Fix: Use the Runs method to get each run, not the property
+                    for (int i = 1; i <= textRange.Runs().Count; i++)
+                    {
+                        try
+                        {
+                            var run = textRange.Runs(i);
+                            if (run.ActionSettings[PowerPoint.PpMouseActivation.ppMouseClick].Action == PowerPoint.PpActionType.ppActionHyperlink)
+                            {
+                                var hyperlink = run.ActionSettings[PowerPoint.PpMouseActivation.ppMouseClick].Hyperlink;
+                                string currentAddress = hyperlink.Address;
+
+                                if (!string.IsNullOrEmpty(currentAddress) &&
+                                    currentAddress.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string updatedAddress = Regex.Replace(currentAddress, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
+
+                                    if (File.Exists(updatedAddress) || Directory.Exists(updatedAddress))
+                                    {
+                                        hyperlink.Address = updatedAddress;
+                                        vinculosActualizados++;
+                                        dbManager.Loguear(nombreArchivo, $"Texto-link actualizado: {currentAddress} → {updatedAddress}", "ACTUALIZADO",
+                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
+                                    }
+                                    else
+                                    {
+                                        vinculosRotos++;
+                                        dbManager.Loguear(nombreArchivo, $"Texto-link roto: {currentAddress}", "ROTO",
+                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // Continuar con el siguiente run si hay error
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                dbManager.Loguear(nombreArchivo, $"Error en texto: {ex.Message}", "ERROR");
+            }
+        }
+
         // Método para limpiar recursos al cerrar la aplicación
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             dbManager?.Dispose();
             base.OnFormClosed(e);
+        }
+    }
+
+    // Clase para representar archivos PowerPoint (similar a ExcelArchivo)
+    public class PowerPointArchivo
+    {
+        public string Nombre { get; set; }
+        public string RutaCompleta { get; set; }
+
+        public PowerPointArchivo(string nombre, string rutaCompleta)
+        {
+            Nombre = nombre;
+            RutaCompleta = rutaCompleta;
+        }
+
+        public override string ToString()
+        {
+            return Nombre;
         }
     }
 }
