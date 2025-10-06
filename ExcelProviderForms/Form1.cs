@@ -296,11 +296,16 @@ namespace ExcelProviderForms
                     string currentPath = shape.LinkFormat.SourceFullName;
                     if (!string.IsNullOrEmpty(currentPath))
                     {
+                        dbManager.Loguear(nombreArchivo, $"Comparando OLE: [Ruta Actual: '{currentPath}'] con [Ruta Antigua: '{oldLink}']", "DEBUG");
+
                         if (currentPath.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
                         {
                             string updatedPath = Regex.Replace(currentPath, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
 
-                            if (File.Exists(updatedPath))
+                            bool newPathExists = File.Exists(updatedPath);
+                            dbManager.Loguear(nombreArchivo, $"Verificando existencia de nueva ruta OLE: {updatedPath} -> {(newPathExists ? "ENCONTRADO" : "NO ENCONTRADO")}", "DEBUG");
+
+                            if (newPathExists)
                             {
                                 shape.LinkFormat.SourceFullName = updatedPath;
                                 vinculosActualizados++;
@@ -309,9 +314,10 @@ namespace ExcelProviderForms
                             }
                             else
                             {
+                                shape.LinkFormat.BreakLink();
                                 vinculosRotos++;
-                                dbManager.Loguear(nombreArchivo, $"OLE roto encontrado: {currentPath}", "ROTO",
-                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
+                                dbManager.Loguear(nombreArchivo, $"Vínculo OLE roto, objeto incrustado: {currentPath}", "EMBEBIDO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔗 {mensaje}"))));
                             }
                         }
                         else
@@ -339,11 +345,16 @@ namespace ExcelProviderForms
                     string currentPath = shape.LinkFormat.SourceFullName;
                     if (!string.IsNullOrEmpty(currentPath))
                     {
+                        dbManager.Loguear(nombreArchivo, $"Comparando Imagen: [Ruta Actual: '{currentPath}'] con [Ruta Antigua: '{oldLink}']", "DEBUG");
+
                         if (currentPath.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
                         {
                             string updatedPath = Regex.Replace(currentPath, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
 
-                            if (File.Exists(updatedPath))
+                            bool newPathExists = File.Exists(updatedPath);
+                            dbManager.Loguear(nombreArchivo, $"Verificando existencia de nueva ruta de imagen: {updatedPath} -> {(newPathExists ? "ENCONTRADO" : "NO ENCONTRADO")}", "DEBUG");
+
+                            if (newPathExists)
                             {
                                 shape.LinkFormat.SourceFullName = updatedPath;
                                 vinculosActualizados++;
@@ -352,9 +363,10 @@ namespace ExcelProviderForms
                             }
                             else
                             {
+                                shape.LinkFormat.BreakLink();
                                 vinculosRotos++;
-                                dbManager.Loguear(nombreArchivo, $"Imagen rota encontrada: {currentPath}", "ROTO",
-                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
+                                dbManager.Loguear(nombreArchivo, $"Vínculo de imagen roto, objeto incrustado: {currentPath}", "EMBEBIDO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔗 {mensaje}"))));
                             }
                         }
                         else
@@ -402,11 +414,16 @@ namespace ExcelProviderForms
                     string currentAddress = actionSetting.Hyperlink.Address;
                     if (!string.IsNullOrEmpty(currentAddress))
                     {
+                        dbManager.Loguear(nombreArchivo, $"Comparando Hipervínculo: [Ruta Actual: '{currentAddress}'] con [Ruta Antigua: '{oldLink}']", "DEBUG");
+
                         if (currentAddress.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
                         {
                             string updatedAddress = Regex.Replace(currentAddress, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
 
-                            if (File.Exists(updatedAddress) || Directory.Exists(updatedAddress))
+                            bool newPathExists = File.Exists(updatedAddress) || Directory.Exists(updatedAddress);
+                            dbManager.Loguear(nombreArchivo, $"Verificando existencia de nueva ruta de hipervínculo: {updatedAddress} -> {(newPathExists ? "ENCONTRADO" : "NO ENCONTRADO")}", "DEBUG");
+
+                            if (newPathExists)
                             {
                                 actionSetting.Hyperlink.Address = updatedAddress;
                                 vinculosActualizados++;
@@ -415,9 +432,10 @@ namespace ExcelProviderForms
                             }
                             else
                             {
+                                actionSetting.Action = PowerPoint.PpActionType.ppActionNone;
                                 vinculosRotos++;
-                                dbManager.Loguear(nombreArchivo, $"Hipervínculo roto: {currentAddress}", "ROTO",
-                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
+                                dbManager.Loguear(nombreArchivo, $"Hipervínculo roto, se eliminó la acción: {currentAddress}", "ELIMINADO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🚫 {mensaje}"))));
                             }
                         }
                         else
@@ -454,24 +472,30 @@ namespace ExcelProviderForms
                                 var hyperlink = run.ActionSettings[PowerPoint.PpMouseActivation.ppMouseClick].Hyperlink;
                                 string currentAddress = hyperlink.Address;
 
+                                dbManager.Loguear(nombreArchivo, $"Comparando Texto-link: [Ruta Actual: '{currentAddress}'] con [Ruta Antigua: '{oldLink}']", "DEBUG");
+
                                 if (!string.IsNullOrEmpty(currentAddress) &&
                                     currentAddress.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
                                 {
                                     string updatedAddress = Regex.Replace(currentAddress, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
 
-                                    if (File.Exists(updatedAddress) || Directory.Exists(updatedAddress))
-                                    {
-                                        hyperlink.Address = updatedAddress;
-                                        vinculosActualizados++;
-                                        dbManager.Loguear(nombreArchivo, $"Texto-link actualizado: {currentAddress} → {updatedAddress}", "ACTUALIZADO",
-                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
-                                    }
-                                    else
-                                    {
-                                        vinculosRotos++;
-                                        dbManager.Loguear(nombreArchivo, $"Texto-link roto: {currentAddress}", "ROTO",
-                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
-                                    }
+                                    bool newPathExists = File.Exists(updatedAddress) || Directory.Exists(updatedAddress);
+                                    dbManager.Loguear(nombreArchivo, $"Verificando existencia de nueva ruta de texto-link: {updatedAddress} -> {(newPathExists ? "ENCONTRADO" : "NO ENCONTRADO")}", "DEBUG");
+
+                            if (newPathExists)
+                            {
+                                hyperlink.Address = updatedAddress;
+                                vinculosActualizados++;
+                                dbManager.Loguear(nombreArchivo, $"Texto-link actualizado: {currentAddress} → {updatedAddress}", "ACTUALIZADO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
+                            }
+                            else
+                            {
+                                run.ActionSettings[PowerPoint.PpMouseActivation.ppMouseClick].Action = PowerPoint.PpActionType.ppActionNone;
+                                vinculosRotos++;
+                                dbManager.Loguear(nombreArchivo, $"Texto-link roto, se eliminó la acción: {currentAddress}", "ELIMINADO",
+                                    mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🚫 {mensaje}"))));
+                            }
                                 }
                             }
                         }
@@ -496,21 +520,4 @@ namespace ExcelProviderForms
         }
     }
 
-    // Clase para representar archivos PowerPoint (similar a ExcelArchivo)
-    public class PowerPointArchivo
-    {
-        public string Nombre { get; set; }
-        public string RutaCompleta { get; set; }
-
-        public PowerPointArchivo(string nombre, string rutaCompleta)
-        {
-            Nombre = nombre;
-            RutaCompleta = rutaCompleta;
-        }
-
-        public override string ToString()
-        {
-            return Nombre;
-        }
-    }
 }
