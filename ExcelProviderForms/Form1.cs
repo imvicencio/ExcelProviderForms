@@ -1,5 +1,6 @@
 ﻿using Microsoft.WindowsAPICodePack.Dialogs;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -17,8 +18,8 @@ namespace ExcelProviderForms
         public Form1()
         {
             InitializeComponent();
-            txtOldPath.Text = @"\\fs-plaza1";
-            txtNewPath.Text = @"\\nas-plaza1";
+            txtOldPath.Text = @"\\nas-plaza1";
+            txtNewPath.Text = @"\\stmplfsrgprdeastus2.file.core.windows.net\fs-mpl-chile\Gerencia_Analisis_del_Negocio";
 
             // Inicializar el manager de base de datos
             dbManager = new DatabaseManager();
@@ -85,6 +86,12 @@ namespace ExcelProviderForms
         {
             string oldLink = txtOldPath.Text.Trim();
             string newLink = txtNewPath.Text.Trim();
+            Dictionary<string, string> listLink = new Dictionary<string, string> 
+            {
+                {@"\\nas-plaza1" , @"\\stmplfsrgprdeastus2.file.core.windows.net\fs-mpl-chile\Gerencia_Analisis_del_Negocio" },
+                {@"\\fs-plaza1" , @"\\stmplfsrgprdeastus2.file.core.windows.net\fs-mpl-chile\Gerencia_Analisis_del_Negocio" },
+                {@"file:///" , "" }
+            }; 
 
             if (string.IsNullOrWhiteSpace(oldLink) || string.IsNullOrWhiteSpace(newLink))
             {
@@ -161,33 +168,38 @@ namespace ExcelProviderForms
                             {
                                 string link = obj.ToString();
 
-                                if (link.StartsWith(oldLink, StringComparison.OrdinalIgnoreCase))
+                                foreach (var ruta in listLink)
                                 {
-                                    string updatedLink = Regex.Replace(link, Regex.Escape(oldLink), newLink, RegexOptions.IgnoreCase);
-
-                                    if (File.Exists(updatedLink))
+                                    if (link.StartsWith(ruta.Key, StringComparison.OrdinalIgnoreCase))
                                     {
-                                        workbook.ChangeLink(link, updatedLink, Excel.XlLinkType.xlLinkTypeExcelLinks);
-                                        vinculosActualizados++;
+                                        string updatedLink = Regex.Replace(link, Regex.Escape(ruta.Key), ruta.Value, RegexOptions.IgnoreCase);
 
-                                        dbManager.Loguear(item.Nombre, $"Vínculo actualizado: {link} → {updatedLink}", "ACTUALIZADO",
-                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
+                                        if (File.Exists(updatedLink))
+                                        {
+                                            workbook.ChangeLink(link, updatedLink, Excel.XlLinkType.xlLinkTypeExcelLinks);
+                                            vinculosActualizados++;
+
+                                            dbManager.Loguear(item.Nombre, $"Vínculo actualizado: {link} → {updatedLink}", "ACTUALIZADO",
+                                                mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"✅ {mensaje}"))));
+                                        }
+                                        else
+                                        {
+                                            workbook.BreakLink(link, Excel.XlLinkType.xlLinkTypeExcelLinks);
+                                            vinculosRotos++;
+
+                                            dbManager.Loguear(item.Nombre, $"Vínculo roto eliminado: {link}", "ROTO",
+                                                mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
+                                        }
                                     }
                                     else
                                     {
-                                        workbook.BreakLink(link, Excel.XlLinkType.xlLinkTypeExcelLinks);
-                                        vinculosRotos++;
-
-                                        dbManager.Loguear(item.Nombre, $"Vínculo roto eliminado: {link}", "ROTO",
-                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"⚠️ {mensaje}"))));
+                                        vinculosSinCambios++;
+                                        dbManager.Loguear(item.Nombre, $"Vínculo sin cambios: {link}", "SIN_CAMBIOS",
+                                            mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔗 {mensaje}"))));
                                     }
                                 }
-                                else
-                                {
-                                    vinculosSinCambios++;
-                                    dbManager.Loguear(item.Nombre, $"Vínculo sin cambios: {link}", "SIN_CAMBIOS",
-                                        mensaje => Invoke((MethodInvoker)(() => listBox2.Items.Add($"🔗 {mensaje}"))));
-                                }
+
+ 
                             }
 
                             // Log resumen
